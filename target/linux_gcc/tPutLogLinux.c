@@ -3,9 +3,7 @@
  *      Toyohashi Open Platform for Embedded Real-Time Systems/
  *      Advanced Standard Profile Kernel
  * 
- *  Copyright (C) 2000-2003 by Embedded and Real-Time Systems Laboratory
- *                              Toyohashi Univ. of Technology, JAPAN
- *  Copyright (C) 2005-2015 by Embedded and Real-Time Systems Laboratory
+ *  Copyright (C) 2015,2016 by Embedded and Real-Time Systems Laboratory
  *              Graduate School of Information Science, Nagoya Univ., JAPAN
  * 
  *  上記著作権者は，以下の(1)〜(4)の条件を満たす場合に限り，本ソフトウェ
@@ -37,91 +35,21 @@
  *  アの利用により直接的または間接的に生じたいかなる損害に関しても，そ
  *  の責任を負わない．
  * 
- *  $Id: target_timer.h 458 2015-08-21 14:59:09Z ertl-hiro $
+ *  $Id: tPutLogLinux.c 509 2016-01-12 06:06:14Z ertl-hiro $
  */
 
 /*
- *		タイマドライバ（Mac OS X用）
+ *		システムログの低レベル出力
  */
 
-#ifndef TOPPERS_TARGET_TIMER_H
-#define TOPPERS_TARGET_TIMER_H
-
-#include <sil.h>
-#include "macosx.h"
-#ifndef TOPPERS_MACRO_ONLY
-#include <sys/time.h>
-#endif /* TOPPERS_MACRO_ONLY */
+#include <unistd.h>
+#include "tPutLogLinux_tecsgen.h"
 
 /*
- *  タイマ割込みハンドラ登録のための定数
+ *  システムログの低レベル出力のための文字出力（受け口関数）
  */
-#define INHNO_TIMER		SIGALRM				/* 割込みハンドラ番号 */
-#define INTNO_TIMER		SIGALRM				/* 割込み番号 */
-#define INTPRI_TIMER	(TMAX_INTPRI - 1)	/* 割込み優先度 */
-#define INTATR_TIMER	TA_EDGE				/* 割込み属性 */
-
-#ifndef TOPPERS_MACRO_ONLY
-
-/*
- *  タイマの初期化処理
- */
-extern void	target_timer_initialize(intptr_t exinf);
-
-/*
- *  タイマの終了処理
- */
-extern void	target_timer_terminate(intptr_t exinf);
-
-/*
- *  高分解能タイマの現在のカウント値の読出し
- */
-extern HRTCNT target_hrt_get_current(void);
-
-/*
- *  高分解能タイマへの割込みタイミングの設定
- *
- *  高分解能タイマを，hrtcntで指定した値カウントアップしたら割込みを発
- *  生させるように設定する．
- */
-extern void target_hrt_set_event(HRTCNT hrtcnt);
-
-/*
- *  高分解能タイマ割込みの要求
- */
-extern void target_hrt_raise_event(void);
-
-/*
- *  割込みタイミングに指定する最大値
- */
-#define HRTCNT_BOUND	4000000002U
-
-/*
- *  オーバランタイマドライバ
- */
-#ifdef TOPPERS_SUPPORT_OVRHDR
-
-/*
- *  オーバランタイマの動作開始
- */
-extern void target_ovrtimer_start(PRCTIM ovrtim);
-
-/*
- *  オーバランタイマの停止
- */
-extern PRCTIM target_ovrtimer_stop(void);
-
-/*
- *  オーバランタイマの現在値の読出し
- */
-extern PRCTIM target_ovrtimer_get_current(void);
-
-#endif /* TOPPERS_SUPPORT_OVRHDR */
-
-/*
- *  タイマ割込みハンドラ
- */
-extern void	target_timer_handler(void);
-
-#endif /* TOPPERS_MACRO_ONLY */
-#endif /* TOPPERS_TARGET_TIMER_H */
+void
+ePutLog_putChar(char c)
+{
+	write(STDERR_FILENO, &c, 1);
+}

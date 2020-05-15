@@ -3,9 +3,9 @@
  *      Toyohashi Open Platform for Embedded Real-Time Systems/
  *      Advanced Standard Profile Kernel
  * 
- *  Copyright (C) 2015 by Ushio Laboratory
- *              Graduate School of Engineering Science, Osaka Univ., JAPAN
- *  Copyright (C) 2015,2016 by Embedded and Real-Time Systems Laboratory
+ *  Copyright (C) 2000-2003 by Embedded and Real-Time Systems Laboratory
+ *                              Toyohashi Univ. of Technology, JAPAN
+ *  Copyright (C) 2005-2015 by Embedded and Real-Time Systems Laboratory
  *              Graduate School of Information Science, Nagoya Univ., JAPAN
  * 
  *  上記著作権者は，以下の(1)〜(4)の条件を満たす場合に限り，本ソフトウェ
@@ -37,99 +37,91 @@
  *  アの利用により直接的または間接的に生じたいかなる損害に関しても，そ
  *  の責任を負わない．
  * 
- *  $Id: tSIOPortMacOSX.cdl 1095 2018-11-28 00:57:28Z ertl-hiro $
+ *  $Id: target_timer.h 458 2015-08-21 14:59:09Z ertl-hiro $
  */
 
 /*
- *		シリアルインタフェースドライバのターゲット依存部（Mac OS X用）
- *		のコンポーネント記述
+ *		タイマドライバ（Linux用）
  */
+
+#ifndef TOPPERS_TARGET_TIMER_H
+#define TOPPERS_TARGET_TIMER_H
+
+#include <sil.h>
+#include "target_linux.h"
+#ifndef TOPPERS_MACRO_ONLY
+#include <sys/time.h>
+#endif /* TOPPERS_MACRO_ONLY */
 
 /*
- *  Mac OS X に関する定義
+ *  タイマ割込みハンドラ登録のための定数
  */
-import_C("tecs_termios.h");
+#define INHNO_TIMER		SIGALRM				/* 割込みハンドラ番号 */
+#define INTNO_TIMER		SIGALRM				/* 割込み番号 */
+#define INTPRI_TIMER	(TMAX_INTPRI - 1)	/* 割込み優先度 */
+#define INTATR_TIMER	TA_EDGE				/* 割込み属性 */
+
+#ifndef TOPPERS_MACRO_ONLY
 
 /*
- *  SIOドライバの本体のセルタイプ
+ *  タイマの初期化処理
  */
-celltype tSIOPortMacOSXMain {
-	/*
-	 *  シリアルインタフェースドライバとの結合
-	 */
-	entry				sSIOPort		eSIOPort;
-	[optional] call		siSIOCBR		ciSIOCBR;
-
-	/*
-	 *  割込みサービスルーチン
-	 */
-	entry	siHandlerBody	eiISR;
-
-	/*
-	 *  終了処理ルーチン
-	 */
-	entry	sRoutineBody	eTerminate;
-
-	attr {
-		const char	*path;				/* パス名 */
-	};
-
-	var {
-		bool_t			opened = false;	/* オープン済みフラグ */
-		struct termios	saved_term;		/* 元の端末制御情報 */
-		int_t			read_fd;		/* 読出し用ファイルディスクリプタ */
-		bool_t			rcv_flag;		/* 受信文字バッファ有効フラグ */
-		char			rcv_buf;		/* 受信文字バッファ */
-		bool_t			rcv_rdy;		/* 受信通知コールバック許可フラグ */
-		int_t			write_fd;		/* 書込み用ファイルディスクリプタ */
-		bool_t			snd_flag;		/* 送信文字バッファ有効フラグ */
-		char			snd_buf;		/* 送信文字バッファ */
-		bool_t			snd_rdy;		/* 送信通知コールバック許可フラグ */
-	};
-};
+extern void	target_timer_initialize(intptr_t exinf);
 
 /*
- *  SIOドライバ（複合コンポーネント）のセルタイプ
+ *  タイマの終了処理
  */
-[active]
-composite tSIOPortMacOSX {
-	/*
-	 *  シリアルインタフェースドライバとの結合
-	 */
-	entry				sSIOPort	eSIOPort;
-	[optional] call		siSIOCBR	ciSIOCBR;
+extern void	target_timer_terminate(intptr_t exinf);
 
-	/*
-	 *  属性の定義
-	 */
-	attr {
-		const char	*path = C_EXP("NULL");		/* パス名 */
-		INTNO		interruptNumber;			/* 割込み番号 */
-		PRI			isrPriority = 1;			/* ISR優先度 */
-	};
+/*
+ *  高分解能タイマの現在のカウント値の読出し
+ */
+extern HRTCNT target_hrt_get_current(void);
 
-	/*
-	 *  SIOドライバの本体
-	 */
-	cell tSIOPortMacOSXMain SIOPortMain {
-		path     = composite.path;
-		ciSIOCBR => composite.ciSIOCBR;
-	};
-	composite.eSIOPort => SIOPortMain.eSIOPort;
+/*
+ *  高分解能タイマへの割込みタイミングの設定
+ *
+ *  高分解能タイマを，hrtcntで指定した値カウントアップしたら割込みを発
+ *  生させるように設定する．
+ */
+extern void target_hrt_set_event(HRTCNT hrtcnt);
 
-	/*
-	 *  SIOの割込みサービスルーチン
-	 */
-	cell tISR ISRInstance {
-		interruptNumber = composite.interruptNumber;
-		isrPriority     = composite.isrPriority;
-		ciISRBody       = SIOPortMain.eiISR;
-	};
+/*
+ *  高分解能タイマ割込みの要求
+ */
+extern void target_hrt_raise_event(void);
 
-	/*
-	 *  SIOドライバの終了処理ルーチン
-	 */
-	cell tTerminateRoutine TerminateSIO {
-		cTerminateRoutineBody = SIOPortMain.eTerminate;
-	};
-};
+/*
+ *  割込みタイミングに指定する最大値
+ */
+#define HRTCNT_BOUND	4000000002U
+
+/*
+ *  オーバランタイマドライバ
+ */
+#ifdef TOPPERS_SUPPORT_OVRHDR
+
+/*
+ *  オーバランタイマの動作開始
+ */
+extern void target_ovrtimer_start(PRCTIM ovrtim);
+
+/*
+ *  オーバランタイマの停止
+ */
+extern PRCTIM target_ovrtimer_stop(void);
+
+/*
+ *  オーバランタイマの現在値の読出し
+ */
+extern PRCTIM target_ovrtimer_get_current(void);
+
+#endif /* TOPPERS_SUPPORT_OVRHDR */
+
+/*
+ *  タイマ割込みハンドラ
+ */
+extern void	target_timer_handler(void);
+
+#endif /* TOPPERS_MACRO_ONLY */
+#endif /* TOPPERS_TARGET_TIMER_H */

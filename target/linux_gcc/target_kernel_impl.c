@@ -39,7 +39,7 @@
  */
 
 /*
- *		カーネルのターゲット依存部（Mac OS X用）
+ *		カーネルのターゲット依存部（Linux用）
  */
 
 #include "kernel_impl.h"
@@ -154,7 +154,7 @@ dispatch(void)
  *  最高優先順位タスクへのディスパッチ（シグナルハンドラ用）
  */
 static void
-dispatch_handler(int sig, struct __siginfo *p_info, void *p_ctx)
+dispatch_handler(int sig, siginfo_t *p_info, void *p_ctx)
 {
 	/*
 	 *  シグナルハンドラの実行開始前のシグナルマスクをsaved_sigmaskに代

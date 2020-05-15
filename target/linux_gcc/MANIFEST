@@ -1,10 +1,11 @@
-PACKAGE asp3_target_macosx_xcode
+PACKAGE asp3_target_linux_gcc
 VERSION 3.5.0
 
 E_PACKAGE
 MANIFEST
 Makefile.target
-macosx.h
+glibc_sysdep.h
+target_linux.h
 tPutLogMacOSX.c
 tPutLogMacOSX.cdl
 tSIOPortMacOSX.cdl
@@ -31,4 +32,4 @@ target_unrename.h
 target_user.txt
 tecs_termios.h
 
-INCLUDE ../simtimer_macosx_xcode/MANIFEST
+INCLUDE ../simtimer_linux_gcc/MANIFEST

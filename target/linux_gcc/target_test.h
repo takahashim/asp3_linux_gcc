@@ -1,10 +1,9 @@
 /*
- *  TOPPERS Software
- *      Toyohashi Open Platform for Embedded Real-Time Systems
+ *  TOPPERS/ASP Kernel
+ *      Toyohashi Open Platform for Embedded Real-Time Systems/
+ *      Advanced Standard Profile Kernel
  * 
- *  Copyright (C) 2000-2003 by Embedded and Real-Time Systems Laboratory
- *                              Toyohashi Univ. of Technology, JAPAN
- *  Copyright (C) 2004-2018 by Embedded and Real-Time Systems Laboratory
+ *  Copyright (C) 2006-2017 by Embedded and Real-Time Systems Laboratory
  *              Graduate School of Information Science, Nagoya Univ., JAPAN
  * 
  *  上記著作権者は，以下の(1)〜(4)の条件を満たす場合に限り，本ソフトウェ
@@ -36,83 +35,48 @@
  *  アの利用により直接的または間接的に生じたいかなる損害に関しても，そ
  *  の責任を負わない．
  * 
- *  $Id: target_sil.h 1075 2018-11-25 13:51:40Z ertl-hiro $
+ *  $Id: target_test.h 1172 2019-03-11 04:45:33Z ertl-hiro $
  */
 
 /*
- *		sil.hのターゲット依存部（Mac OS X用）
- *
- *  このインクルードファイルは，sil.hの先頭でインクルードされる．他のファ
- *  イルからは直接インクルードすることはない．このファイルをインクルー
- *  ドする前に，t_stddef.hがインクルードされるので，それらに依存しても
- *  よい．
+ *		テストプログラムのターゲット依存部（Linux用）
  */
 
-#ifndef TOPPERS_TARGET_SIL_H
-#define TOPPERS_TARGET_SIL_H
+#ifndef TOPPERS_TARGET_TEST_H
+#define TOPPERS_TARGET_TEST_H
 
-#ifndef TOPPERS_MACRO_ONLY
+#include <target_linux.h>
 
 /*
- *  標準のインクルードファイル
+ *  サンプルプログラム／テストプログラムで設定するスタックサイズ
  */
-#include <signal.h>
-#include <stdatomic.h>
-
-#include <t_stddef.h>
+#define	STACK_SIZE				SIGSTKSZ
 
 /*
- *  NMIを除くすべての割込みの禁止
+ *  サンプルプログラム／テストプログラムで使用するCPU例外に関する定義
  */
-Inline void
-TOPPERS_dissig(sigset_t *p_sigmask)
-{
-	extern sigset_t	_kernel_sigmask_intlock;
-
-	sigprocmask(SIG_BLOCK, &_kernel_sigmask_intlock, p_sigmask);
-}
+#define	SIGINFO					SIGPWR	/* A synonym for SIGPWR */
+#define CPUEXC1					SIGINFO
+#define RAISE_CPU_EXCEPTION		(raise(SIGINFO))
+#define PREPARE_RETURN_CPUEXC
 
 /*
- *  割込み優先度マスク（内部表現）の現在値の設定
+ *  サンプルプログラム／テストプログラムで使用する割込みに関する定義
  */
-Inline void
-TOPPERS_setsig(sigset_t *p_sigmask)
-{
-	sigprocmask(SIG_SETMASK, p_sigmask, NULL);
-}
+#define INTNO1					SIGUSR1
+#define INTNO1_INTATR			TA_ENAINT|TA_EDGE
+#define INTNO1_INTPRI			(-5)
+#define intno1_clear()
 
 /*
- *  全割込みロック状態の制御
+ *  サンプルプログラムのためのその他の定義
  */
-#define SIL_PRE_LOC		sigset_t TOPPERS_sigmask
-#define SIL_LOC_INT()	(TOPPERS_dissig(&TOPPERS_sigmask))
-#define SIL_UNL_INT()	(TOPPERS_setsig(&TOPPERS_sigmask))
+#define LOOP_REF				ULONG_C(10000000)
+#define MEASURE_TWICE
 
 /*
- *  微少時間待ち
+ *  テストプログラムで使用する時間パラメータに関する定義
  */
-Inline void
-sil_dly_nse(ulong_t dlytim)
-{
-	/*
-	 *  シミュレーション環境では意味がないため，何もしない．
-	 */
-}
+#define TEST_TIME_CP	1000U
 
-#endif /* TOPPERS_MACRO_ONLY */
-
-/*
- *  プロセッサのエンディアン
- */
-#if defined(__ppc__)
-#define SIL_ENDIAN_BIG				/* ビッグエンディアン */
-#elif defined(__i386__) || defined(__x86_64__)
-#define SIL_ENDIAN_LITTLE			/* リトルエンディアン */
-#endif
-
-/*
- *  メモリ同期バリア
- */
-#define TOPPERS_SIL_WRITE_SYNC()	atomic_thread_fence(memory_order_seq_cst)
-
-#endif /* TOPPERS_TARGET_SIL_H */
+#endif /* TOPPERS_TARGET_TEST_H */

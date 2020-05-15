@@ -1,9 +1,10 @@
 /*
- *  TOPPERS/ASP Kernel
- *      Toyohashi Open Platform for Embedded Real-Time Systems/
- *      Advanced Standard Profile Kernel
+ *  TOPPERS Software
+ *      Toyohashi Open Platform for Embedded Real-Time Systems
  * 
- *  Copyright (C) 2006-2018 by Embedded and Real-Time Systems Laboratory
+ *  Copyright (C) 2000-2003 by Embedded and Real-Time Systems Laboratory
+ *                              Toyohashi Univ. of Technology, JAPAN
+ *  Copyright (C) 2004-2019 by Embedded and Real-Time Systems Laboratory
  *              Graduate School of Information Science, Nagoya Univ., JAPAN
  * 
  *  上記著作権者は，以下の(1)〜(4)の条件を満たす場合に限り，本ソフトウェ
@@ -35,48 +36,61 @@
  *  アの利用により直接的または間接的に生じたいかなる損害に関しても，そ
  *  の責任を負わない．
  * 
- *  $Id: target_test.h 1172 2019-03-11 04:45:33Z ertl-hiro $
+ *  $Id: target_stddef.h 1230 2019-07-04 06:46:50Z ertl-hiro $
  */
 
 /*
- *		テストプログラムのターゲット依存部
- *		（Mac OS X＋タイマドライバシミュレータ用）
+ *		t_stddef.hのターゲット依存部（Linux用）
+ *
+ *  このインクルードファイルは，t_stddef.hの先頭でインクルードされる．
+ *  他のファイルからは直接インクルードすることはない．他のインクルード
+ *  ファイルに先立って処理されるため，他のインクルードファイルに依存し
+ *  てはならない．
  */
 
-#ifndef TOPPERS_TARGET_TEST_H
-#define TOPPERS_TARGET_TEST_H
-
-#include <macosx.h>
+#ifndef TOPPERS_TARGET_STDDEF_H
+#define TOPPERS_TARGET_STDDEF_H
 
 /*
- *  サンプルプログラム／テストプログラムで設定するスタックサイズ
+ *  ターゲットを識別するためのマクロの定義
  */
-#define	STACK_SIZE				SIGSTKSZ
+#define TOPPERS_LINUX				/* システム略称 */
 
 /*
- *  サンプルプログラム／テストプログラムで使用するCPU例外に関する定義
+ *  開発環境で共通な定義
  */
-#define CPUEXC1					SIGINFO
-#define RAISE_CPU_EXCEPTION		(raise(SIGINFO))
-#define PREPARE_RETURN_CPUEXC
+#define TOPPERS_STDFLOAT_TYPE1
+#include "tool_stddef.h"
 
 /*
- *  サンプルプログラム／テストプログラムで使用する割込みに関する定義
+ *  開発環境の標準インクルードファイルの利用
+ *
+ *  C99互換の整数型の定義をstdint.hから取り込む．stdlib.hは，abortの宣
+ *  言を取り込むためにインクルードしている．
  */
-#define INTNO1					SIGUSR1
-#define INTNO1_INTATR			TA_ENAINT|TA_EDGE
-#define INTNO1_INTPRI			(-5)
-#define intno1_clear()
+#ifndef TOPPERS_MACRO_ONLY
+#include <stdint.h>
+#ifndef TECSGEN
+#include <stdlib.h>					/* tecsgenが解釈できないためスキップ */
+#endif /* TECSGEN */
+#endif /* TOPPERS_MACRO_ONLY */
 
 /*
- *  サンプルプログラムのためのその他の定義
+ *  アサーションの失敗時の実行中断処理
  */
-#define LOOP_REF				ULONG_C(100000)
-#define MEASURE_TWICE
+#ifndef TOPPERS_MACRO_ONLY
+
+Inline void
+TOPPERS_assert_abort(void)
+{
+	abort();
+}
 
 /*
- *  テストプログラムで使用する時間パラメータに関する定義
+ *  software_init_hookとsoftware_term_hookを呼び出すための宣言
  */
-#define TEST_TIME_CP	1000U
+extern void	software_init_hook(void) __attribute__((constructor));
+extern void	software_term_hook(void) __attribute__((destructor));
 
-#endif /* TOPPERS_TARGET_TEST_H */
+#endif /* TOPPERS_MACRO_ONLY */
+#endif /* TOPPERS_TARGET_STDDEF_H */

@@ -1,11 +1,10 @@
 /*
- *  TOPPERS/ASP Kernel
- *      Toyohashi Open Platform for Embedded Real-Time Systems/
- *      Advanced Standard Profile Kernel
+ *  TOPPERS Software
+ *      Toyohashi Open Platform for Embedded Real-Time Systems
  * 
- *  Copyright (C) 2015 by Ushio Laboratory
- *              Graduate School of Engineering Science, Osaka Univ., JAPAN
- *  Copyright (C) 2015,2016 by Embedded and Real-Time Systems Laboratory
+ *  Copyright (C) 2000-2003 by Embedded and Real-Time Systems Laboratory
+ *                              Toyohashi Univ. of Technology, JAPAN
+ *  Copyright (C) 2004-2018 by Embedded and Real-Time Systems Laboratory
  *              Graduate School of Information Science, Nagoya Univ., JAPAN
  * 
  *  上記著作権者は，以下の(1)〜(4)の条件を満たす場合に限り，本ソフトウェ
@@ -37,54 +36,83 @@
  *  アの利用により直接的または間接的に生じたいかなる損害に関しても，そ
  *  の責任を負わない．
  * 
- *  $Id: target.cdl 1073 2018-11-25 01:30:09Z ertl-hiro $
+ *  $Id: target_sil.h 1075 2018-11-25 13:51:40Z ertl-hiro $
  */
 
 /*
- *		コンポーネント記述ファイルのターゲット依存部（Mac OS X用）
+ *		sil.hのターゲット依存部（Linux用）
+ *
+ *  このインクルードファイルは，sil.hの先頭でインクルードされる．他のファ
+ *  イルからは直接インクルードすることはない．このファイルをインクルー
+ *  ドする前に，t_stddef.hがインクルードされるので，それらに依存しても
+ *  よい．
  */
 
-/*
- *  タスクのスタックサイズのデフォルト
- */
-const size_t DefaultTaskStackSize = 131072;		/* スタックサイズ（128KB）*/
+#ifndef TOPPERS_TARGET_SIL_H
+#define TOPPERS_TARGET_SIL_H
+
+#ifndef TOPPERS_MACRO_ONLY
 
 /*
- *  システムログタスクのスタックサイズの定義
+ *  標準のインクルードファイル
  */
-const size_t LogTaskStackSize = DefaultTaskStackSize;
+#include <signal.h>
+#include <stdatomic.h>
+
+#include <t_stddef.h>
 
 /*
- *  カーネル起動メッセージに関する定義
+ *  NMIを除くすべての割込みの禁止
  */
-const char *const BannerTargetName = "Mac OS X";		/* ターゲット名 */
-const char *const BannerCopyrightNotice = "";			/* 著作権表示 */
+Inline void
+TOPPERS_dissig(sigset_t *p_sigmask)
+{
+	extern sigset_t	_kernel_sigmask_intlock;
+
+	sigprocmask(SIG_BLOCK, &_kernel_sigmask_intlock, p_sigmask);
+}
 
 /*
- *  ターゲット依存のセルタイプの定義
+ *  割込み優先度マスク（内部表現）の現在値の設定
  */
-import("tPutLogMacOSX.cdl");
-import("tSIOPortMacOSX.cdl");
+Inline void
+TOPPERS_setsig(sigset_t *p_sigmask)
+{
+	sigprocmask(SIG_SETMASK, p_sigmask, NULL);
+}
 
 /*
- *  UNIX用ノンブロッキングI/Oサポートのための割込み要求ライン
+ *  全割込みロック状態の制御
  */
-cell tInterruptRequest SIGIOInterruptRequest {
-	interruptNumber   = C_EXP("SIGIO");
-	interruptPriority = C_EXP("TMAX_INTPRI");
-	attribute         = C_EXP("TA_ENAINT | TA_EDGE");
-};
+#define SIL_PRE_LOC		sigset_t TOPPERS_sigmask
+#define SIL_LOC_INT()	(TOPPERS_dissig(&TOPPERS_sigmask))
+#define SIL_UNL_INT()	(TOPPERS_setsig(&TOPPERS_sigmask))
 
 /*
- *  シリアルインタフェースドライバのターゲット依存部の組み上げ記述
+ *  微少時間待ち
  */
-cell tSIOPortMacOSX SIOPortTarget1 {
-	/* 属性の設定 */
-	interruptNumber = C_EXP("SIGIO");
-};
+Inline void
+sil_dly_nse(ulong_t dlytim)
+{
+	/*
+	 *  シミュレーション環境では意味がないため，何もしない．
+	 */
+}
+
+#endif /* TOPPERS_MACRO_ONLY */
 
 /*
- *  低レベル出力の組み上げ記述
+ *  プロセッサのエンディアン
  */
-cell tPutLogMacOSX PutLogTarget {
-};
+#if defined(__ppc__)
+#define SIL_ENDIAN_BIG				/* ビッグエンディアン */
+#elif defined(__i386__) || defined(__x86_64__)
+#define SIL_ENDIAN_LITTLE			/* リトルエンディアン */
+#endif
+
+/*
+ *  メモリ同期バリア
+ */
+#define TOPPERS_SIL_WRITE_SYNC()	atomic_thread_fence(memory_order_seq_cst)
+
+#endif /* TOPPERS_TARGET_SIL_H */

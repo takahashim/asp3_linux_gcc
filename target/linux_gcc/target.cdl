@@ -3,6 +3,8 @@
  *      Toyohashi Open Platform for Embedded Real-Time Systems/
  *      Advanced Standard Profile Kernel
  * 
+ *  Copyright (C) 2015 by Ushio Laboratory
+ *              Graduate School of Engineering Science, Osaka Univ., JAPAN
  *  Copyright (C) 2015,2016 by Embedded and Real-Time Systems Laboratory
  *              Graduate School of Information Science, Nagoya Univ., JAPAN
  * 
@@ -35,21 +37,54 @@
  *  アの利用により直接的または間接的に生じたいかなる損害に関しても，そ
  *  の責任を負わない．
  * 
- *  $Id: tPutLogMacOSX.c 509 2016-01-12 06:06:14Z ertl-hiro $
+ *  $Id: target.cdl 1073 2018-11-25 01:30:09Z ertl-hiro $
  */
 
 /*
- *		システムログの低レベル出力
+ *		コンポーネント記述ファイルのターゲット依存部（Linux用）
  */
-
-#include <unistd.h>
-#include "tPutLogMacOSX_tecsgen.h"
 
 /*
- *  システムログの低レベル出力のための文字出力（受け口関数）
+ *  タスクのスタックサイズのデフォルト
  */
-void
-ePutLog_putChar(char c)
-{
-	write(STDERR_FILENO, &c, 1);
-}
+const size_t DefaultTaskStackSize = 131072;		/* スタックサイズ（128KB）*/
+
+/*
+ *  システムログタスクのスタックサイズの定義
+ */
+const size_t LogTaskStackSize = DefaultTaskStackSize;
+
+/*
+ *  カーネル起動メッセージに関する定義
+ */
+const char *const BannerTargetName = "Linux";		/* ターゲット名 */
+const char *const BannerCopyrightNotice = "";			/* 著作権表示 */
+
+/*
+ *  ターゲット依存のセルタイプの定義
+ */
+import("tPutLogLinux.cdl");
+import("tSIOPortLinux.cdl");
+
+/*
+ *  UNIX用ノンブロッキングI/Oサポートのための割込み要求ライン
+ */
+cell tInterruptRequest SIGIOInterruptRequest {
+	interruptNumber   = C_EXP("SIGIO");
+	interruptPriority = C_EXP("TMAX_INTPRI");
+	attribute         = C_EXP("TA_ENAINT | TA_EDGE");
+};
+
+/*
+ *  シリアルインタフェースドライバのターゲット依存部の組み上げ記述
+ */
+cell tSIOPortLinux SIOPortTarget1 {
+	/* 属性の設定 */
+	interruptNumber = C_EXP("SIGIO");
+};
+
+/*
+ *  低レベル出力の組み上げ記述
+ */
+cell tPutLogLinux PutLogTarget {
+};

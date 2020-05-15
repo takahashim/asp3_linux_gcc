@@ -41,7 +41,7 @@
  */
 
 /*
- *		kernel.hのターゲット依存部（Mac OS X用）
+ *		kernel.hのターゲット依存部（Linux用）
  *
  *  このインクルードファイルは，kernel.hでインクルードされる．他のファ
  *  イルから直接インクルードすることはない．このファイルをインクルード
@@ -67,6 +67,14 @@
 #define TMIN_INTPRI		(-6)		/* 割込み優先度の最小値（最高値）*/
 #endif /* TMIN_INTPRI */
 #define TMAX_INTPRI		(-1)		/* 割込み優先度の最大値（最低値） */
+
+/*
+ * workround against a  missing definition of SIGIO
+ * in ${project}/gen/tInterruptRequest_tecsgen.c
+ */
+#ifndef	SIGIO
+#define	SIGIO	29	/* see <signal.h> */
+#endif
 
 /*
  *  ターゲット依存部でサポートできる機能

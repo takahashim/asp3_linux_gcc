@@ -3,7 +3,9 @@
  *      Toyohashi Open Platform for Embedded Real-Time Systems/
  *      Advanced Standard Profile Kernel
  * 
- *  Copyright (C) 2006-2017 by Embedded and Real-Time Systems Laboratory
+ *  Copyright (C) 2000-2003 by Embedded and Real-Time Systems Laboratory
+ *                              Toyohashi Univ. of Technology, JAPAN
+ *  Copyright (C) 2005-2018 by Embedded and Real-Time Systems Laboratory
  *              Graduate School of Information Science, Nagoya Univ., JAPAN
  * 
  *  上記著作権者は，以下の(1)〜(4)の条件を満たす場合に限り，本ソフトウェ
@@ -35,47 +37,73 @@
  *  アの利用により直接的または間接的に生じたいかなる損害に関しても，そ
  *  の責任を負わない．
  * 
- *  $Id: target_test.h 1172 2019-03-11 04:45:33Z ertl-hiro $
+ *  $Id: target_timer.h 1121 2018-12-17 00:33:26Z ertl-hiro $
  */
 
 /*
- *		テストプログラムのターゲット依存部（Mac OS X用）
+ *		タイマドライバ
+ *		（Mac OS X＋タイマドライバシミュレータ用）
  */
 
-#ifndef TOPPERS_TARGET_TEST_H
-#define TOPPERS_TARGET_TEST_H
+#ifndef TOPPERS_TARGET_TIMER_H
+#define TOPPERS_TARGET_TIMER_H
 
-#include <macosx.h>
+#include "target_linux.h"
 
 /*
- *  サンプルプログラム／テストプログラムで設定するスタックサイズ
+ *  タイマ割込みハンドラ登録のための定数
  */
-#define	STACK_SIZE				SIGSTKSZ
+#define INHNO_TIMER		SIGALRM				/* 割込みハンドラ番号 */
+#define INTNO_TIMER		SIGALRM				/* 割込み番号 */
+#define INTPRI_TIMER	(TMAX_INTPRI - 1)	/* 割込み優先度 */
+#define INTATR_TIMER	TA_EDGE				/* 割込み属性 */
+
+#ifdef TOPPERS_SUPPORT_OVRHDR
+/*
+ *  オーバランタイマ割込みハンドラ登録のための定数
+ */
+#define INHNO_OVRTIMER		SIGVTALRM		/* 割込みハンドラ番号 */
+#define INTNO_OVRTIMER		SIGVTALRM		/* 割込み番号 */
+#define INTPRI_OVRTIMER		INTPRI_TIMER	/* 割込み優先度 */
+#define INTATR_OVRTIMER		TA_EDGE			/* 割込み属性 */
+
+#endif /* TOPPERS_SUPPORT_OVRHDR */
+
+#ifndef TOPPERS_MACRO_ONLY
 
 /*
- *  サンプルプログラム／テストプログラムで使用するCPU例外に関する定義
+ *  シミュレートされた高分解能タイマ割込みの要求
  */
-#define CPUEXC1					SIGINFO
-#define RAISE_CPU_EXCEPTION		(raise(SIGINFO))
-#define PREPARE_RETURN_CPUEXC
+Inline void
+target_raise_hrt_int(void)
+{
+	raise(SIGALRM);
+}
+
+#ifdef TOPPERS_SUPPORT_OVRHDR
+/*
+ *  シミュレートされたオーバランタイマ割込みの要求
+ */
+Inline void
+target_raise_ovr_int(void)
+{
+	raise(SIGVTALRM);
+}
 
 /*
- *  サンプルプログラム／テストプログラムで使用する割込みに関する定義
+ *  シミュレートされたオーバランタイマ割込み要求のクリア
  */
-#define INTNO1					SIGUSR1
-#define INTNO1_INTATR			TA_ENAINT|TA_EDGE
-#define INTNO1_INTPRI			(-5)
-#define intno1_clear()
+Inline void
+target_clear_ovr_int(void)
+{
+}
+
+#endif /* TOPPERS_SUPPORT_OVRHDR */
+#endif /* TOPPERS_MACRO_ONLY */
 
 /*
- *  サンプルプログラムのためのその他の定義
+ *  タイマドライバシミュレータ
  */
-#define LOOP_REF				ULONG_C(10000000)
-#define MEASURE_TWICE
+#include "sim_timer.h"
 
-/*
- *  テストプログラムで使用する時間パラメータに関する定義
- */
-#define TEST_TIME_CP	1000U
-
-#endif /* TOPPERS_TARGET_TEST_H */
+#endif /* TOPPERS_TARGET_TIMER_H */

@@ -35,20 +35,20 @@
  *  アの利用により直接的または間接的に生じたいかなる損害に関しても，そ
  *  の責任を負わない．
  * 
- *  $Id: tSIOPortMacOSXMain.c 1095 2018-11-28 00:57:28Z ertl-hiro $
+ *  $Id: tSIOPortLinuxMain.c 1095 2018-11-28 00:57:28Z ertl-hiro $
  */
 
 /*
- *		シリアルインタフェースドライバのターゲット依存部（Mac OS X用）
+ *		シリアルインタフェースドライバのターゲット依存部（Linux用）
  */
 
-#include "macosx.h"
+#include "target_linux.h"
 #include <t_stddef.h>
 #include <t_syslog.h>
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include "tSIOPortMacOSXMain_tecsgen.h"
+#include "tSIOPortLinuxMain_tecsgen.h"
  
 /*
  *  SIOポートのオープン

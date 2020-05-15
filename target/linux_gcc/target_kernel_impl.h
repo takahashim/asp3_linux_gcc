@@ -39,7 +39,7 @@
  */
 
 /*
- *		カーネルのターゲット依存部（Mac OS X用）
+ *		カーネルのターゲット依存部（Linux用）
  *
  *  カーネルのターゲット依存部のヘッダファイル．kernel_impl.hのターゲッ
  *  ト依存部の位置付けとなる．
@@ -65,7 +65,7 @@
 /*
  *  ターゲットシステムのOS依存の定義
  */
-#include "macosx.h"
+#include "target_linux.h"
 
 /*
  *  ターゲット定義のオブジェクト属性
@@ -110,25 +110,19 @@
 /*
  *  アーキテクチャ（プロセッサ）依存の定義
  */
-#if defined(__ppc__)
+#include "glibc_sysdep.h"	/* PTR_MANGLE */
 
-#define JMPBUF_PC				21			/* jmp_buf中でのPCの位置 */
-#define JMPBUF_SP				0			/* jmp_buf中でのSPの位置 */
-#define TASK_STACK_MERGIN		4U
-#define DEFAULT_ISTKSZ			SIGSTKSZ	/* シグナルスタックのサイズ */
+#if defined(__i386__)
 
-#elif defined(__i386__)
-
-#define JMPBUF_PC				12			/* jmp_buf中でのPCの位置 */
-#define JMPBUF_SP				9			/* jmp_buf中でのSPの位置 */
+#define JMPBUF_PC			5			/* jmp_buf中でのPCの位置 */
+#define JMPBUF_SP			4			/* jmp_buf中でのSPの位置 */
 #define TASK_STACK_MERGIN		4U 
 #define DEFAULT_ISTKSZ			SIGSTKSZ	/* シグナルスタックのサイズ */
 
 #elif defined(__x86_64__)
 
-#error architecture not supported
 #define JMPBUF_PC				7			/* jmp_buf中でのPCの位置 */
-#define JMPBUF_SP				2			/* jmp_buf中でのSPの位置 */
+#define JMPBUF_SP			6			/* jmp_buf中でのSPの位置 */
 #define TASK_STACK_MERGIN		8U 
 #define DEFAULT_ISTKSZ			SIGSTKSZ	/* シグナルスタックのサイズ */
 
@@ -175,9 +169,36 @@ extern const INHINIB	inhinib_table[];
 /*
  *  シグナルセット操作マクロ
  */
-#define sigequalset(set1, set2)		(*(set1) == *(set2))
-#define sigassignset(set1, set2)	(*(set1) = *(set2))
-#define sigjoinset(set1, set2)		(*(set1) |= *(set2))
+#define sigequalset(set1, set2)													\
+	(__extension__ ({ int __cnt = _SIGSET_NWORDS;								\
+					const sigset_t *__set1 = (const sigset_t *)(set1);			\
+					const sigset_t *__set2 = (const sigset_t *)(set2);			\
+					int __ret = 1;												\
+					while (--__cnt >= 0) {										\
+						if (__set1->__val[__cnt] != __set2->__val[__cnt]) {		\
+							__ret = 0;											\
+							break;												\
+						}														\
+					};															\
+					__ret; }))
+
+#define sigassignset(set1, set2)												\
+	(__extension__ ({ int __cnt = _SIGSET_NWORDS;								\
+					sigset_t *__set1 = (sigset_t *)(set1);						\
+					const sigset_t *__set2 = (const sigset_t *)(set2);			\
+					while (--__cnt >= 0) {										\
+						__set1->__val[__cnt] = __set2->__val[__cnt];			\
+					};															\
+					0; }))
+
+#define sigjoinset(set1, set2)													\
+	(__extension__ ({ int __cnt = _SIGSET_NWORDS;								\
+					sigset_t *__set1 = (sigset_t *)(set1);						\
+					const sigset_t *__set2 = (const sigset_t *)(set2);			\
+					while (--__cnt >= 0) {										\
+						__set1->__val[__cnt] |= __set2->__val[__cnt];			\
+					};															\
+					0; }))
 
 /*
  *  割込み優先度マスクによるシグナルマスク（kernel_cfg.c）
@@ -333,7 +354,7 @@ t_get_ipm(void)
 /*
  *  割込み番号の範囲の判定
  */
-#define	VALID_INTNO(intno)	(1 <= (intno) && (intno) <= 30 \
+#define	VALID_INTNO(intno)	(1 <= (intno) && (intno) <= 31 \
 								&& (intno) != SIGKILL && (intno) != SIGSTOP)
 
 /*
@@ -352,7 +373,7 @@ check_intno_cfg(INTNO intno)
 Inline void
 disable_int(INTNO intno)
 {
-	sigaddset(&sigmask_disint, intno);
+	sigaddset((sigset_t *)&sigmask_disint, intno);
 	set_sigmask();
 }
 
@@ -362,7 +383,7 @@ disable_int(INTNO intno)
 Inline void
 enable_int(INTNO intno)
 {
-	sigdelset(&sigmask_disint, intno);
+	sigdelset((sigset_t *)&sigmask_disint, intno);
 	set_sigmask();
 }
 
@@ -461,12 +482,20 @@ extern void	start_r(void);
 
 #define activate_context(p_tcb)											\
 {																		\
-	((intptr_t *) &((p_tcb)->tskctxb.env))[JMPBUF_PC]					\
-											= (intptr_t) start_r;		\
-	((intptr_t *) &((p_tcb)->tskctxb.env))[JMPBUF_SP]					\
-						= (intptr_t)((char *)((p_tcb)->p_tinib->stk)	\
-										+ (p_tcb)->p_tinib->stksz		\
+	intptr_t pc;													\
+	intptr_t sp;													\
+																	\
+	pc = (intptr_t) start_r;										\
+	PTR_MANGLE(pc);													\
+																	\
+	(p_tcb)->tskctxb.env[0].__jmpbuf[JMPBUF_PC] = pc;				\
+																	\
+	sp = ((((intptr_t)((char *)((p_tcb)->p_tinib->stk)				\
+							+ (p_tcb)->p_tinib->stksz)) & ~0x0f)	\
 										- TASK_STACK_MERGIN);			\
+	PTR_MANGLE(sp);													\
+																	\
+	(p_tcb)->tskctxb.env[0].__jmpbuf[JMPBUF_SP] = sp;				\
 }
 
 /*
@@ -488,7 +517,7 @@ define_inh(INHNO inhno, FP int_entry, PRI intpri)
 
 	assert(VALID_INHNO(inhno));
 	sigact.sa_sigaction =
-				(void (*)(int, struct __siginfo *, void *))(int_entry);
+				(void (*)(int, siginfo_t *, void *))(int_entry);
 	sigact.sa_flags = (SA_ONSTACK | SA_SIGINFO);
 	sigassignset(&(sigact.sa_mask), &(sigmask_table[-intpri]));
 	sigaddset(&(sigact.sa_mask), SIGUSR2);
@@ -511,7 +540,7 @@ define_exc(EXCNO excno, FP exc_entry)
 
 	assert(VALID_EXCNO(excno));
 	sigact.sa_sigaction =
-				(void (*)(int, struct __siginfo *, void *))(exc_entry);
+				(void (*)(int, siginfo_t *, void *))(exc_entry);
 	sigact.sa_flags = (SA_ONSTACK | SA_SIGINFO | SA_NODEFER);
 	sigemptyset(&(sigact.sa_mask));
 	sigaddset(&(sigact.sa_mask), SIGUSR2);
@@ -555,14 +584,14 @@ define_exc(EXCNO excno, FP exc_entry)
 
 #define INTHDR_ENTRY(inhno, inthdr, intpri)								\
 void _kernel_##inthdr##_##inhno(int sig,								\
-						struct __siginfo *p_info, void *p_ctx)			\
+						siginfo_t *p_info, void *p_ctx)			\
 {																		\
 	PRI		saved_intpri;												\
 																		\
 	lock_cpu();															\
 	saved_intpri = _kernel_intpri_value;								\
 	_kernel_intpri_value = intpri;										\
-	if (((ucontext_t *) p_ctx)->uc_onstack == 0) {						\
+	if ((((ucontext_t *) p_ctx)->uc_stack.ss_flags & SS_ONSTACK) == 0) { \
 		OVRTIMER_STOP();												\
 	}																	\
 	unlock_cpu();														\
@@ -574,7 +603,7 @@ void _kernel_##inthdr##_##inhno(int sig,								\
 	if (!sense_lock()) {												\
 		lock_cpu();														\
 	}																	\
-	if (((ucontext_t *) p_ctx)->uc_onstack == 0) {						\
+	if ((((ucontext_t *) p_ctx)->uc_stack.ss_flags & SS_ONSTACK) == 0) { \
 		if (_kernel_p_runtsk != _kernel_p_schedtsk) {					\
 			raise(SIGUSR2);		/* ディスパッチャの起動を要求する */	\
 		}																\
@@ -591,7 +620,7 @@ void _kernel_##inthdr##_##inhno(int sig,								\
 
 #define EXCHDR_ENTRY(excno, excno_num, exchdr)								\
 void _kernel_##exchdr##_##excno(int sig,									\
-						struct __siginfo *p_info, void *p_ctx)				\
+						siginfo_t *p_info, void *p_ctx)				\
 {																			\
 	if (exc_sense_nonkernel(p_ctx)) {										\
 		bool_t	saved_lock_flag;											\
@@ -604,7 +633,7 @@ void _kernel_##exchdr##_##excno(int sig,									\
 	else {																	\
 		/* カーネル管理のCPU例外ハンドラの場合 */							\
 		lock_cpu();															\
-		if (((ucontext_t *) p_ctx)->uc_onstack == 0) {						\
+		if ((((ucontext_t *) p_ctx)->uc_stack.ss_flags & SS_ONSTACK) == 0) { \
 			OVRTIMER_STOP();												\
 		}																	\
 		unlock_cpu();														\
@@ -616,7 +645,7 @@ void _kernel_##exchdr##_##excno(int sig,									\
 		if (!sense_lock()) {												\
 			lock_cpu();														\
 		}																	\
-		if (((ucontext_t *) p_ctx)->uc_onstack == 0) {						\
+		if ((((ucontext_t *) p_ctx)->uc_stack.ss_flags & SS_ONSTACK) == 0) { \
 			if (_kernel_p_runtsk != _kernel_p_schedtsk) {					\
 				raise(SIGUSR2);		/* ディスパッチャの起動を要求する */	\
 			}																\
@@ -635,7 +664,7 @@ void _kernel_##exchdr##_##excno(int sig,									\
 Inline bool_t
 exc_sense_context(void *p_excinf)
 {
-	return(((ucontext_t *) p_excinf)->uc_onstack != 0);
+	return ((((ucontext_t *) p_excinf)->uc_stack.ss_flags & SS_ONSTACK) != 0);
 }
 
 /*

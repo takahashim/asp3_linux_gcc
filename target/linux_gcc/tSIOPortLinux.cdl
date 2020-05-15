@@ -37,17 +37,99 @@
  *  アの利用により直接的または間接的に生じたいかなる損害に関しても，そ
  *  の責任を負わない．
  * 
- *  $Id: tPutLogMacOSX.cdl 509 2016-01-12 06:06:14Z ertl-hiro $
+ *  $Id: tSIOPortLinux.cdl 1095 2018-11-28 00:57:28Z ertl-hiro $
  */
 
 /*
- *		システムログの低レベル出力のコンポーネント記述
+ *		シリアルインタフェースドライバのターゲット依存部（Linux用）
+ *		のコンポーネント記述
  */
 
 /*
- *  システムログの低レベル出力のセルタイプ
+ *  Linux に関する定義
  */
-[singleton]
-celltype tPutLogMacOSX {
-	entry	sPutLog		ePutLog;
+import_C("tecs_termios.h");
+
+/*
+ *  SIOドライバの本体のセルタイプ
+ */
+celltype tSIOPortLinuxMain {
+	/*
+	 *  シリアルインタフェースドライバとの結合
+	 */
+	entry				sSIOPort		eSIOPort;
+	[optional] call		siSIOCBR		ciSIOCBR;
+
+	/*
+	 *  割込みサービスルーチン
+	 */
+	entry	siHandlerBody	eiISR;
+
+	/*
+	 *  終了処理ルーチン
+	 */
+	entry	sRoutineBody	eTerminate;
+
+	attr {
+		const char	*path;				/* パス名 */
+	};
+
+	var {
+		bool_t			opened = false;	/* オープン済みフラグ */
+		struct termios	saved_term;		/* 元の端末制御情報 */
+		int_t			read_fd;		/* 読出し用ファイルディスクリプタ */
+		bool_t			rcv_flag;		/* 受信文字バッファ有効フラグ */
+		char			rcv_buf;		/* 受信文字バッファ */
+		bool_t			rcv_rdy;		/* 受信通知コールバック許可フラグ */
+		int_t			write_fd;		/* 書込み用ファイルディスクリプタ */
+		bool_t			snd_flag;		/* 送信文字バッファ有効フラグ */
+		char			snd_buf;		/* 送信文字バッファ */
+		bool_t			snd_rdy;		/* 送信通知コールバック許可フラグ */
+	};
+};
+
+/*
+ *  SIOドライバ（複合コンポーネント）のセルタイプ
+ */
+[active]
+composite tSIOPortLinux {
+	/*
+	 *  シリアルインタフェースドライバとの結合
+	 */
+	entry				sSIOPort	eSIOPort;
+	[optional] call		siSIOCBR	ciSIOCBR;
+
+	/*
+	 *  属性の定義
+	 */
+	attr {
+		const char	*path = C_EXP("NULL");		/* パス名 */
+		INTNO		interruptNumber;			/* 割込み番号 */
+		PRI			isrPriority = 1;			/* ISR優先度 */
+	};
+
+	/*
+	 *  SIOドライバの本体
+	 */
+	cell tSIOPortLinuxMain SIOPortMain {
+		path     = composite.path;
+		ciSIOCBR => composite.ciSIOCBR;
+	};
+	composite.eSIOPort => SIOPortMain.eSIOPort;
+
+	/*
+	 *  SIOの割込みサービスルーチン
+	 */
+	cell tISR ISRInstance {
+		interruptNumber = composite.interruptNumber;
+		isrPriority     = composite.isrPriority;
+		ciISRBody       = SIOPortMain.eiISR;
+	};
+
+	/*
+	 *  SIOドライバの終了処理ルーチン
+	 */
+	cell tTerminateRoutine TerminateSIO {
+		cTerminateRoutineBody = SIOPortMain.eTerminate;
+	};
 };
