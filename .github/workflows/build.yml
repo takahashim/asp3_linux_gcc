@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: use gcc-multilib
+      run: sudo apt-get install gcc-multilib
     - name: create work dir && make
       run: |
         mkdir obj
